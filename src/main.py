@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from src.api.router import chat_router , api_key_router
+from api.router import chat_router , api_key_router
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
