@@ -1,43 +1,39 @@
-import requests
-from io import BytesIO
-from typing import Union
+import os
+import json
 from openai import OpenAI
 
-def create_file(client: OpenAI, file_path: str) -> str:
-    """
-    Uploads a file to OpenAI's storage, either from a local path or a URL.
+client = OpenAI()
 
-    Args:
-        client (OpenAI): An instance of the OpenAI client.
-        file_path (str): The file path (local) or URL (remote) of the file to be uploaded.
+# Tạo vector store
+vector_store = client.vector_stores.create(
+    name="Support FAQ",
+)
 
-    Returns:
-        str: The unique ID of the uploaded file.
+# Thư mục chứa tài liệu
+folder_path = "/Users/luongthaison/Documents/Third_years_student/Project/phenika_X/Agent_SDK/data_test/001.LUAT_QLT"
+vector_ids = []  # Danh sách lưu vector_id
 
-    Raises:
-        requests.RequestException: If the file download from URL fails.
-        openai.error.OpenAIError: If the file upload to OpenAI fails.
-    """
-    if file_path.startswith(("http://", "https://")):
-        # Download the file content from the URL
-        response = requests.get(file_path)
-        response.raise_for_status()  # Raise an error for failed requests
+# Duyệt qua tất cả các file trong thư mục
+for file_name in os.listdir(folder_path):
+    file_path = os.path.join(folder_path, file_name)
 
-        file_content = BytesIO(response.content)
-        file_name = file_path.split("/")[-1]
-        file_tuple = (file_name, file_content)
+    if os.path.isfile(file_path):
+        print(f"Uploading {file_name}...")
 
-        result = client.files.create(
-            file=file_tuple,
-            purpose="assistants"
+        # Upload file lên vector store
+        response = client.vector_stores.files.upload_and_poll(
+            vector_store_id=vector_store.id,
+            file=open(file_path, "rb")
         )
-    else:
-        # Handle local file path
-        with open(file_path, "rb") as file_content:
-            result = client.files.create(
-                file=file_content,
-                purpose="assistants"
-            )
 
-    print(result.id)
-    return result.id
+        # Lưu ID của file đã upload
+        vector_ids.append({
+            "file_name": file_name,
+            "vector_id": response.id  # Lấy ID của vector
+        })
+
+# Ghi danh sách vector_id vào file JSON
+with open("vector_ids.json", "w", encoding="utf-8") as f:
+    json.dump(vector_ids, f, indent=4)
+
+ 

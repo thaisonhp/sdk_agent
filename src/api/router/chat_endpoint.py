@@ -5,10 +5,12 @@ from domain.runner import run_agent
 import os 
 from dotenv import load_dotenv
 import shutil
-from application.update_file import create_file
 import openai
 import os 
 load_dotenv()
+from agents import RunContextWrapper
+from src.domain.runner import stream_agent_response
+
 
 chat_router = APIRouter()
 
@@ -45,32 +47,52 @@ async def websocket_chat(websocket: WebSocket):
     finally:
         print("🔌 WebSocket disconnected!")
         await websocket.close()
-
-@chat_router.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
+@chat_router.post("/ask/")
+async def ask_question(request: QueryRequest):
     """
-    API endpoint to upload a file and store it in OpenAI's storage.
+    API endpoint to ask a question to the AI model.
 
     Args:
-        file (UploadFile): The uploaded file from client.
+        request (QueryRequest): The request containing article and question.
 
     Returns:
-        dict: A response containing file ID and filename.
+        dict: A response containing the answer from the AI model.
     """
     try:
-        # Lưu file tạm thời
-        temp_file_path = f"temp_{file.filename}"
-        with open(temp_file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Gọi hàm upload file lên OpenAI
-        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        file_id = create_file(client, temp_file_path)
-
-        # Xóa file tạm sau khi upload
-        os.remove(temp_file_path)
-
-        return {"filename": file.filename, "file_id": file_id}
+        # Gọi hàm chạy agent
+        user_message = request.text
+        print(f"📝 User: {user_message}")
+        # response = await run_agent(user_message=user_message)
+        # return {"answer": response}
+        return await stream_agent_response(user_message)
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+# @chat_router.post("/upload/")
+# async def upload_file(file: UploadFile = File(...)):
+#     """
+#     API endpoint to upload a file and store it in OpenAI's storage.
+
+#     Args:
+#         file (UploadFile): The uploaded file from client.
+
+#     Returns:
+#         dict: A response containing file ID and filename.
+#     """
+#     try:
+#         # Lưu file tạm thời
+#         temp_file_path = f"temp_{file.filename}"
+#         with open(temp_file_path, "wb") as buffer:
+#             shutil.copyfileobj(file.file, buffer)
+
+#         # Gọi hàm upload file lên OpenAI
+#         client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+#         file_id = create_file(client, temp_file_path)
+
+#         # Xóa file tạm sau khi upload
+#         os.remove(temp_file_path)
+
+#         return {"filename": file.filename, "file_id": file_id}
+    
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
